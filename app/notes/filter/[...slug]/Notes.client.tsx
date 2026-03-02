@@ -1,36 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { deleteNote, fetchNotes } from "@/lib/api";
+import { fetchNotes } from "@/lib/api";
 import css from "./NotesPage.module.css";
 import NoteList from "@/components/NoteList/NoteList";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Pagination from "@/components/Pagination/Pagination";
 import SearchBox from "@/components/SearchBox/SearchBox";
 import { useDebouncedCallback } from "use-debounce";
 import Link from "next/link";
+import { NoteTag } from "@/types/note";
 
 type Props = {
-  params: string | undefined;
+  tag: NoteTag | undefined;
 };
 
-function NotesClient({ params }: Props) {
-  const queryClient = useQueryClient();
-
+function NotesClient({ tag }: Props) {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [query, setQuery] = useState<string>("");
 
   const { data } = useQuery({
-    queryKey: ["notes", currentPage, query],
-    queryFn: () => fetchNotes(query, currentPage, params),
+    queryKey: ["notes", currentPage, query, tag],
+    queryFn: () => fetchNotes(query, currentPage, tag),
+    placeholderData: keepPreviousData,
     refetchOnMount: false,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (noteId: string) => deleteNote(noteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notes"] });
-    },
   });
 
   const handleQueryChange = useDebouncedCallback(
@@ -40,10 +33,6 @@ function NotesClient({ params }: Props) {
     },
     500,
   );
-
-  const handleDeleteMutation = (noteId: string) => {
-    deleteMutation.mutate(noteId);
-  };
 
   const totalPages = data?.totalPages ?? 1;
 
@@ -62,9 +51,7 @@ function NotesClient({ params }: Props) {
           Create note +
         </Link>
       </header>
-      {data?.notes && data.notes.length > 0 && (
-        <NoteList notes={data.notes} handleDelete={handleDeleteMutation} />
-      )}
+      {data?.notes && data.notes.length > 0 && <NoteList notes={data.notes} />}
     </div>
   );
 }
